@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Administrasi Ujian</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <style>
     body { background-color: #f0f4f0; font-family: 'Segoe UI', sans-serif; }
@@ -115,7 +115,12 @@
 
       // Validasi domain (Opsional, tapi disarankan)
       if (!currentUserEmail.endsWith("@daarululuumlido.com")) {
-        alert("Harap gunakan email @daarululuumlido.com");
+        Swal.fire({
+          icon: 'error',
+          title: 'Akses Ditolak',
+          text: 'Harap gunakan email @daarululuumlido.com',
+          confirmButtonColor: '#2e7d32'
+        });
         return;
       }
 
@@ -147,12 +152,22 @@
         if (result.status === "success") {
           renderInitial(result.data);
         } else {
-          alert("Terjadi kesalahan sistem: " + result.message);
+          Swal.fire({
+            icon: 'error',
+            title: 'Terjadi Kesalahan',
+            text: result.message,
+            confirmButtonColor: '#2e7d32'
+          });
           resetLoginState();
         }
       })
       .catch(error => {
-        alert("Gagal menghubungi server.");
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Menghubungi Server',
+          text: 'Harap periksa koneksi internet Anda.',
+          confirmButtonColor: '#2e7d32'
+        });
         resetLoginState();
       });
     }
@@ -176,7 +191,12 @@
     // Render Data (Sama persis dengan kodemu sebelumnya)
     function renderInitial(response) {
       if (!response || response.datasets.length === 0) {
-        alert("Akses ditolak atau data guru untuk email " + currentUserEmail + " tidak ditemukan.");
+        Swal.fire({
+          icon: 'warning',
+          title: 'Akses Ditolak',
+          text: 'Data guru untuk email ' + currentUserEmail + ' tidak ditemukan.',
+          confirmButtonColor: '#2e7d32'
+        });
         resetLoginState();
         return; 
       }
@@ -255,8 +275,8 @@
                         <div class="input-wrapper">
                           <input type="number" pattern="[0-9]*" inputmode="numeric" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
                             value="${row.vals[i] || ''}" 
-                            onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
-                            onkeydown="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx})">
+                            onblur="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
+                            onkeydown="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx}, '${spinnerId}')">
                           <div id="${spinnerId}" class="input-spinner"></div>
                         </div>
                       </td>`;
@@ -313,10 +333,36 @@
       renderTable(setIndex);
     }
 
-    function handleEnterKey(event, setIndex, currentRowNum, colIdx) {
+    function isValidNilai(val) {
+      if (val === "") return true;
+      const isNumeric = /^\d+$/.test(val);
+      const numVal = parseInt(val, 10);
+      return (isNumeric && numVal >= 0 && numVal <= 100);
+    }
+
+    function handleEnterKey(event, setIndex, currentRowNum, colIdx, spinnerId) {
       if (event.key === "Enter") {
         event.preventDefault();
-        event.target.blur(); // Memicu onchange untuk save
+        
+        const inputElement = event.target;
+        const val = inputElement.value.trim();
+
+        // VALIDASI SEBELUM PINDAH FOKUS
+        if (!isValidNilai(val)) {
+           Swal.fire({
+             icon: 'warning',
+             title: 'Nilai Tidak Valid',
+             text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
+             confirmButtonColor: '#2e7d32'
+           }).then(() => {
+             inputElement.value = ""; 
+             inputElement.focus();
+           });
+           return; // Berhenti dieksekusi, tidak jadi simpan dan pindah
+        }
+        
+        // Pemicu Simpan
+        saveValue(setIndex, currentRowNum, colIdx, val, spinnerId, inputElement);
 
         const set = globalData[setIndex];
         const query = (searchQueries[setIndex] || "").toLowerCase();
@@ -355,18 +401,32 @@
     }
 
     function validateAndSave(setIndex, rowNum, colIdx, inputElement, spinnerId) {
+      // Dipanggil saat onblur (pindah manual tanpa Enter)
       const val = inputElement.value.trim();
-      if (val === "") {
-        saveValue(setIndex, rowNum, colIdx, "", spinnerId, inputElement);
-        return;
+      
+      // Ambil nilai lama dari globalData
+      const dataIndex = globalData[setIndex].tableData.findIndex(r => r.rowNum === rowNum);
+      const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
+      let oldValue = "";
+      if (dataIndex !== -1) {
+         oldValue = globalData[setIndex].tableData[dataIndex].vals[valsIndex] || "";
+      }
+      
+      // Hanya simpan jika nilai berubah
+      if (val === String(oldValue).trim()) {
+         return;
       }
 
-      const isNumeric = /^\d+$/.test(val);
-      const numVal = parseInt(val, 10);
-
-      if (!isNumeric || numVal < 0 || numVal > 100) {
-        alert('⛔ PERINGATAN:\n\nNilai harus angka antara 0 - 100.\nTidak boleh ada tanda baca atau simbol.');
-        inputElement.value = ""; 
+      if (!isValidNilai(val)) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Nilai Tidak Valid',
+          text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
+          confirmButtonColor: '#2e7d32'
+        }).then(() => {
+          inputElement.value = ""; 
+          inputElement.focus();
+        });
         return;
       }
       saveValue(setIndex, rowNum, colIdx, val, spinnerId, inputElement);
