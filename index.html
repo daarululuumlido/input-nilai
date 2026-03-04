@@ -65,8 +65,32 @@
     let searchQueries = {};
     let currentUserEmail = "";
 
-    // Inisialisasi Tombol Login Google
+    // Cek Session saat halaman dimuat
     window.onload = function () {
+      const savedEmail = localStorage.getItem("userEmail");
+      const sessionExpiry = localStorage.getItem("sessionExpiry");
+      
+      const now = new Date().getTime();
+      if (savedEmail && sessionExpiry && now < parseInt(sessionExpiry)) {
+        // Session masih valid (belum 30 menit)
+        currentUserEmail = savedEmail;
+        
+        // Perpanjang session 30 menit lagi agar jika aktif tidak logout tiba-tiba
+        localStorage.setItem("sessionExpiry", (now + 30 * 60 * 1000).toString());
+        
+        document.getElementById('google-btn-container').style.display = 'none';
+        document.getElementById('loading-msg').style.display = 'block';
+        fetchData();
+      } else {
+        // Session habis atau tidak ada
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("sessionExpiry");
+        initGoogleLogin();
+      }
+    };
+
+    // Inisialisasi Tombol Login Google
+    function initGoogleLogin() {
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleCredentialResponse
@@ -75,7 +99,7 @@
         document.getElementById("google-btn-container"),
         { theme: "outline", size: "large", text: "continue_with" }  // Tombol resmi Google
       );
-    };
+    }
 
     // Fungsi jika login Google berhasil
     function handleCredentialResponse(response) {
@@ -129,7 +153,18 @@
 
     function resetLoginState() {
       document.getElementById('google-btn-container').style.display = 'flex';
+      document.getElementById('google-btn-container').innerHTML = '';
+      initGoogleLogin();
       document.getElementById('loading-msg').style.display = 'none';
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("sessionExpiry");
+    }
+
+    function logout() {
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("sessionExpiry");
+      currentUserEmail = "";
+      location.reload(); // Muat ulang halaman
     }
 
     // Render Data (Sama persis dengan kodemu sebelumnya)
@@ -140,7 +175,12 @@
         return; 
       }
 
-      document.getElementById('user-display').innerText = `Login: ${currentUserEmail}`;
+      // Simpan session selama 30 menit sejak load berhasil
+      const now = new Date().getTime();
+      localStorage.setItem("userEmail", currentUserEmail);
+      localStorage.setItem("sessionExpiry", (now + 30 * 60 * 1000).toString());
+
+      document.getElementById('user-display').innerHTML = `Login: ${currentUserEmail} | <a href="#" onclick="logout(); return false;" class="text-decoration-none text-danger fw-bold ms-2">Logout</a>`;
 
       globalData = response.datasets;
       document.getElementById('login-screen').style.display = 'none';
