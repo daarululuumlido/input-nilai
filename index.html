@@ -289,10 +289,12 @@
                     rowCells += `
                       <td class="text-center">
                         <div class="input-wrapper">
-                          <input type="number" inputmode="text" enterkeyhint="done" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
-                            value="${row.vals[i] || ''}" 
-                            onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
-                            onkeydown="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx}, '${spinnerId}')">
+                          <form onsubmit="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx}, '${spinnerId}'); return false;">
+                            <input type="number" inputmode="text" enterkeyhint="next" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
+                              value="${row.vals[i] || ''}" 
+                              onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
+                              onkeydown="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx}, '${spinnerId}')">
+                          </form>
                           <div id="${spinnerId}" class="input-spinner"></div>
                         </div>
                       </td>`;
@@ -389,10 +391,17 @@
     }
 
     function handleEnterKey(event, setIndex, currentRowNum, colIdx, spinnerId) {
-      if (event.key === "Enter") {
+      if (event.type === "submit" || event.key === "Enter") {
         event.preventDefault();
         
-        const inputElement = event.target;
+        // Ambil elemen input
+        let inputElement;
+        if (event.type === "submit") {
+           inputElement = event.target.elements[0]; // Dari form
+        } else {
+           inputElement = event.target; // Dari onkeydown
+        }
+        
         const val = inputElement.value.trim();
 
         if (!isValidNilai(val)) {
@@ -408,10 +417,10 @@
            oldValue = globalData[setIndex].tableData[dataIndex].vals[valsIndex] || "";
         }
 
-        // Jika nilai berubah, biarkan saveValue yang pindah fokus
+        // Jika nilai berubah, tandai input agar saveValue yang memindahkan fokus nanti (setelah respon server)
         if (val !== String(oldValue).trim()) {
            inputElement.dataset.moveFocusOnSave = "true";
-           inputElement.blur(); 
+           inputElement.blur();  // memicu onchange -> validateAndSave -> saveValue
         } else {
            // Nilai tidak berubah, langsung pindah fokus tanpa save
            moveToNextRow(setIndex, currentRowNum, colIdx);
