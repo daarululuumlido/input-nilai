@@ -276,9 +276,9 @@
                     rowCells += `
                       <td class="text-center">
                         <div class="input-wrapper">
-                          <input type="text" inputmode="numeric" enterkeyhint="next" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
+                          <input type="number" inputmode="text" enterkeyhint="done" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
                             value="${row.vals[i] || ''}" 
-                            onblur="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
+                            onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
                             onkeydown="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx}, '${spinnerId}')">
                           <div id="${spinnerId}" class="input-spinner"></div>
                         </div>
@@ -348,59 +348,37 @@
         event.preventDefault();
         
         const inputElement = event.target;
-        const val = inputElement.value.trim();
-
-        // VALIDASI SEBELUM PINDAH FOKUS
-        if (!isValidNilai(val)) {
-           Swal.fire({
-             icon: 'warning',
-             title: 'Nilai Tidak Valid',
-             text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
-             timer: 1200,
-             showConfirmButton: false,
-             returnFocus: true
-           }).then(() => {
-             inputElement.value = ""; 
-             setTimeout(() => {
-               inputElement.focus();
-             }, 50);
-           });
-           return; // Berhenti dieksekusi, tidak jadi simpan dan pindah
-        }
         
-        // Pemicu Simpan
-        saveValue(setIndex, currentRowNum, colIdx, val, spinnerId, inputElement);
+        // Pemicu onchange untuk validasi dan penentuan simpan
+        inputElement.blur(); 
 
+        // Cari row selanjutnya untuk difokuskan
         const set = globalData[setIndex];
         const query = (searchQueries[setIndex] || "").toLowerCase();
         const filteredData = set.tableData.filter(row => row.vals[0].toString().toLowerCase().includes(query));
         
-        // Cari index row saat ini di data yang sudah di filter
         const currentDataIndex = filteredData.findIndex(r => r.rowNum === currentRowNum);
 
         if (currentDataIndex !== -1 && currentDataIndex + 1 < filteredData.length) {
           const nextRow = filteredData[currentDataIndex + 1];
           const nextRowNum = nextRow.rowNum;
 
-          // Cek apakah nextRow ada di halaman *sekarang*
           const pageSize = 5;
           const currentStart = currentPage[setIndex] * pageSize;
           const currentEnd = currentStart + pageSize;
 
-          // Apakah target index > batas end halaman saat ini?
+          // Halaman habis, pindah next page
           if (currentDataIndex + 1 >= currentEnd) {
-             // Harus ganti halaman dulu
              focusNextOnRender = { setIndex: setIndex, rowNum: nextRowNum, colIdx: colIdx };
              changePage(setIndex, 1);
           } else {
-             // Masih di halaman yang sama, langsung fokus
              const nextInputId = `input-${setIndex}-${nextRowNum}-${colIdx}`;
              const nextInput = document.getElementById(nextInputId);
              if (nextInput) {
                nextInput.focus();
-               const val = nextInput.value;
+               const v = nextInput.value;
                nextInput.value = '';
-               nextInput.value = val;
+               nextInput.value = v;
              }
           }
         }
@@ -408,10 +386,9 @@
     }
 
     function validateAndSave(setIndex, rowNum, colIdx, inputElement, spinnerId) {
-      // Dipanggil saat onblur (pindah manual tanpa Enter)
+      // Dipanggil saat selesai diinput (onChange / dipaksa blur)
       const val = inputElement.value.trim();
       
-      // Ambil nilai lama dari globalData
       const dataIndex = globalData[setIndex].tableData.findIndex(r => r.rowNum === rowNum);
       const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
       let oldValue = "";
@@ -419,7 +396,7 @@
          oldValue = globalData[setIndex].tableData[dataIndex].vals[valsIndex] || "";
       }
       
-      // Hanya simpan jika nilai berubah
+      // Jika nilai sama dengan sebelum diedit, tidak perlu nyimpan
       if (val === String(oldValue).trim()) {
          return;
       }
@@ -428,7 +405,7 @@
         Swal.fire({
           icon: 'warning',
           title: 'Nilai Tidak Valid',
-          text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
+          text: 'Nilai harus angka antara 0 - 100.',
           timer: 1200,
           showConfirmButton: false,
           returnFocus: true
@@ -440,20 +417,28 @@
         });
         return;
       }
+      // Valid, lanjukan proses save
       saveValue(setIndex, rowNum, colIdx, val, spinnerId, inputElement);
     }
 
     // Komunikasi dengan Apps Script untuk simpan data
     function saveValue(setIndex, rowNum, colIdx, newValue, spinnerId, inputElement) {
-      const statusEl = document.getElementById(`status-${setIndex}`);
-      const spinnerEl = document.getElementById(spinnerId);
+      const getStatusEl = () => document.getElementById(`status-${setIndex}`);
+      const getSpinnerEl = () => document.getElementById(spinnerId);
+      const getInputEl = () => document.getElementById(`input-${setIndex}-${rowNum}-${colIdx}`) || inputElement;
       
-      statusEl.style.display = "block";
-      statusEl.className = "status-saved bg-light text-warning";
-      statusEl.innerText = "Saving...";
+      const stEl = getStatusEl();
+      if(stEl) {
+        stEl.style.display = "block";
+        stEl.className = "status-saved bg-light text-warning";
+        stEl.innerText = "Saving...";
+      }
       
-      if (spinnerEl) spinnerEl.style.display = "block";
-      if (inputElement) inputElement.disabled = true;
+      const spEl = getSpinnerEl();
+      if (spEl) spEl.style.display = "block";
+      
+      const currInp = getInputEl();
+      if (currInp) currInp.disabled = true;
 
       const payload = {
         action: "updateCell",
@@ -471,19 +456,29 @@
       })
       .then(response => response.json())
       .then(result => {
-        if (spinnerEl) spinnerEl.style.display = "none";
-        if (inputElement) inputElement.disabled = false;
+        const currSp = getSpinnerEl();
+        if (currSp) currSp.style.display = "none";
+        
+        const currInp2 = getInputEl();
+        if (currInp2) currInp2.disabled = false;
+        
+        const currSt = getStatusEl();
         
         if(result.status === "success") {
-          statusEl.className = "status-saved bg-success text-white";
-          statusEl.innerText = "✓ OK";
+          if (currSt) {
+             currSt.className = "status-saved bg-success text-white";
+             currSt.innerText = "✓ OK";
+             currSt.style.display = "block";
+          }
           
-          if (inputElement) {
-             inputElement.style.borderColor = "#28a745";
-             inputElement.style.backgroundColor = "#d4edda";
+          if (currInp2) {
+             currInp2.style.borderColor = "#28a745";
+             currInp2.style.backgroundColor = "#d4edda";
              setTimeout(() => {
-               inputElement.style.borderColor = "#ffc107";
-               inputElement.style.backgroundColor = "";
+               if(currInp2) {
+                 currInp2.style.borderColor = "#ffc107";
+                 currInp2.style.backgroundColor = "";
+               }
              }, 1500);
           }
           
@@ -491,25 +486,39 @@
           const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
           if (dataIndex !== -1) globalData[setIndex].tableData[dataIndex].vals[valsIndex] = newValue;
 
-          setTimeout(() => { statusEl.style.display = "none"; }, 1500);
+          setTimeout(() => { 
+             const tempSt = getStatusEl();
+             if(tempSt) tempSt.style.display = "none"; 
+          }, 1500);
         } else {
-          statusEl.className = "status-saved bg-danger text-white";
-          statusEl.innerText = "Gagal";
-          if (inputElement) {
-             inputElement.style.borderColor = "#dc3545";
-             inputElement.style.backgroundColor = "#f8d7da";
+          if (currSt) {
+             currSt.className = "status-saved bg-danger text-white";
+             currSt.innerText = "Gagal";
+             currSt.style.display = "block";
+          }
+          if (currInp2) {
+             currInp2.style.borderColor = "#dc3545";
+             currInp2.style.backgroundColor = "#f8d7da";
           }
         }
       })
       .catch(err => {
-        if (spinnerEl) spinnerEl.style.display = "none";
-        if (inputElement) {
-            inputElement.disabled = false;
-            inputElement.style.borderColor = "#dc3545";
-            inputElement.style.backgroundColor = "#f8d7da";
+        const currSp = getSpinnerEl();
+        if (currSp) currSp.style.display = "none";
+        
+        const currInp2 = getInputEl();
+        if (currInp2) {
+            currInp2.disabled = false;
+            currInp2.style.borderColor = "#dc3545";
+            currInp2.style.backgroundColor = "#f8d7da";
         }
-        statusEl.className = "status-saved bg-danger text-white";
-        statusEl.innerText = "Error Jaringan";
+        
+        const currSt = getStatusEl();
+        if (currSt) {
+           currSt.className = "status-saved bg-danger text-white";
+           currSt.innerText = "Error Jaringan";
+           currSt.style.display = "block";
+        }
       });
     }
   </script>
