@@ -238,9 +238,22 @@
       const end = start + pageSize;
       const paginatedRows = filteredData.slice(start, end);
 
-      let headerHtml = set.headers.map((h, i) => 
-        `<th class="${i > 2 ? 'bg-warning text-dark text-center' : 'text-center'}">${h || ''}</th>`
-      ).join('');
+      let headerHtml = set.headers.map((h, i) => {
+        if (i > 2) {
+          let emptyCount = set.tableData.filter(row => {
+             let val = row.vals[i];
+             return val === undefined || val === null || String(val).trim() === "";
+          }).length;
+          let emptyText = emptyCount > 0 
+            ? `<span class="text-danger fw-bold">(${emptyCount} kosong)</span>` 
+            : `<span class="text-success fw-bold">(Lengkap)</span>`;
+            
+          return `<th class="bg-warning text-dark text-center align-middle" id="header-${setIndex}-${i}" style="white-space:nowrap;">
+                    ${h || ''}<br><small>${emptyText}</small>
+                  </th>`;
+        }
+        return `<th class="text-center align-middle">${h || ''}</th>`;
+      }).join('');
 
       let cardHtml = `
         <div class="data-card" id="card-${setIndex}">
@@ -510,6 +523,19 @@
           const dataIndex = globalData[setIndex].tableData.findIndex(r => r.rowNum === rowNum);
           const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
           if (dataIndex !== -1) globalData[setIndex].tableData[dataIndex].vals[valsIndex] = newValue;
+
+          const headerEl = document.getElementById(`header-${setIndex}-${valsIndex}`);
+          if (headerEl) {
+             let emptyCount = globalData[setIndex].tableData.filter(row => {
+                let val = row.vals[valsIndex];
+                return val === undefined || val === null || String(val).trim() === "";
+             }).length;
+             let hName = globalData[setIndex].headers[valsIndex] || '';
+             let emptyText = emptyCount > 0 
+               ? `<span class="text-danger fw-bold">(${emptyCount} kosong)</span>` 
+               : `<span class="text-success fw-bold">(Lengkap)</span>`;
+             headerEl.innerHTML = `${hName}<br><small>${emptyText}</small>`;
+          }
 
           if (moveFocusNext) {
               moveToNextRow(setIndex, rowNum, colIdx);
