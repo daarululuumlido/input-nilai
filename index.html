@@ -273,7 +273,7 @@
                     rowCells += `
                       <td class="text-center">
                         <div class="input-wrapper">
-                          <input type="number" pattern="[0-9]*" inputmode="numeric" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
+                          <input type="text" inputmode="numeric" enterkeyhint="next" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
                             value="${row.vals[i] || ''}" 
                             onblur="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
                             onkeydown="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx}, '${spinnerId}')">
