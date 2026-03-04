@@ -67,6 +67,9 @@
     let currentPage = {};
     let searchQueries = {};
     let currentUserEmail = "";
+    
+    // Konfigurasi pindah fokus baris selanjutnya
+    let focusNextOnRender = null;
 
     // Cek Session saat halaman dimuat
     window.onload = function () {
@@ -250,9 +253,10 @@
                     rowCells += `
                       <td class="text-center">
                         <div class="input-wrapper">
-                          <input type="text" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
+                          <input type="number" pattern="[0-9]*" inputmode="numeric" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
                             value="${row.vals[i] || ''}" 
-                            onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')">
+                            onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')"
+                            onkeydown="handleEnterKey(event, ${setIndex}, ${row.rowNum}, ${actualColIdx})">
                           <div id="${spinnerId}" class="input-spinner"></div>
                         </div>
                       </td>`;
@@ -280,6 +284,22 @@
       } else {
         container.insertAdjacentHTML('beforeend', cardHtml);
       }
+
+      // Jika kita barusan ganti halaman untuk pindah baris dari enter
+      if (focusNextOnRender) {
+         setTimeout(() => {
+           const nextInputId = `input-${focusNextOnRender.setIndex}-${focusNextOnRender.rowNum}-${focusNextOnRender.colIdx}`;
+           const nextInput = document.getElementById(nextInputId);
+           if (nextInput) {
+             nextInput.focus();
+             // Letakkan kursor di akhir text apabila ada text
+             const val = nextInput.value;
+             nextInput.value = '';
+             nextInput.value = val;
+           }
+           focusNextOnRender = null;
+         }, 100);
+      }
     }
 
     function handleSearch(setIndex, value) {
@@ -291,6 +311,47 @@
     function changePage(setIndex, direction) {
       currentPage[setIndex] += direction;
       renderTable(setIndex);
+    }
+
+    function handleEnterKey(event, setIndex, currentRowNum, colIdx) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        event.target.blur(); // Memicu onchange untuk save
+
+        const set = globalData[setIndex];
+        const query = (searchQueries[setIndex] || "").toLowerCase();
+        const filteredData = set.tableData.filter(row => row.vals[0].toString().toLowerCase().includes(query));
+        
+        // Cari index row saat ini di data yang sudah di filter
+        const currentDataIndex = filteredData.findIndex(r => r.rowNum === currentRowNum);
+
+        if (currentDataIndex !== -1 && currentDataIndex + 1 < filteredData.length) {
+          const nextRow = filteredData[currentDataIndex + 1];
+          const nextRowNum = nextRow.rowNum;
+
+          // Cek apakah nextRow ada di halaman *sekarang*
+          const pageSize = 5;
+          const currentStart = currentPage[setIndex] * pageSize;
+          const currentEnd = currentStart + pageSize;
+
+          // Apakah target index > batas end halaman saat ini?
+          if (currentDataIndex + 1 >= currentEnd) {
+             // Harus ganti halaman dulu
+             focusNextOnRender = { setIndex: setIndex, rowNum: nextRowNum, colIdx: colIdx };
+             changePage(setIndex, 1);
+          } else {
+             // Masih di halaman yang sama, langsung fokus
+             const nextInputId = `input-${setIndex}-${nextRowNum}-${colIdx}`;
+             const nextInput = document.getElementById(nextInputId);
+             if (nextInput) {
+               nextInput.focus();
+               const val = nextInput.value;
+               nextInput.value = '';
+               nextInput.value = val;
+             }
+          }
+        }
+      }
     }
 
     function validateAndSave(setIndex, rowNum, colIdx, inputElement, spinnerId) {
