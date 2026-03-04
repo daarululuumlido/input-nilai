@@ -309,19 +309,19 @@
       }
 
       // Jika kita barusan ganti halaman untuk pindah baris dari enter
-      if (focusNextOnRender) {
+      if (focusNextOnRender && focusNextOnRender.setIndex === setIndex) {
+         // Tunggu DOM selesai dirender ulang
          setTimeout(() => {
            const nextInputId = `input-${focusNextOnRender.setIndex}-${focusNextOnRender.rowNum}-${focusNextOnRender.colIdx}`;
            const nextInput = document.getElementById(nextInputId);
            if (nextInput) {
              nextInput.focus();
-             // Letakkan kursor di akhir text apabila ada text
              const val = nextInput.value;
              nextInput.value = '';
              nextInput.value = val;
            }
            focusNextOnRender = null;
-         }, 100);
+         }, 150); // Timeout diperbesar sedikit untuk memastikan DOM siap
       }
     }
 
