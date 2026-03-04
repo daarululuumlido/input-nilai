@@ -343,23 +343,7 @@
       return (isNumeric && numVal >= 0 && numVal <= 100);
     }
 
-    function handleEnterKey(event, setIndex, currentRowNum, colIdx, spinnerId) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        
-        const inputElement = event.target;
-        const val = inputElement.value.trim();
-
-        if (!isValidNilai(val)) {
-           // Invalid, biarkan onchange yang menampilkan error, jangan pindah fokus
-           inputElement.blur(); 
-           return;
-        }
-        
-        // Pemicu onchange untuk simpan (jika berubah)
-        inputElement.blur(); 
-
-        // Cari row selanjutnya untuk difokuskan
+    function moveToNextRow(setIndex, currentRowNum, colIdx) {
         const set = globalData[setIndex];
         const query = (searchQueries[setIndex] || "").toLowerCase();
         const filteredData = set.tableData.filter(row => row.vals[0].toString().toLowerCase().includes(query));
@@ -388,6 +372,36 @@
                nextInput.value = v;
              }
           }
+        }
+    }
+
+    function handleEnterKey(event, setIndex, currentRowNum, colIdx, spinnerId) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        
+        const inputElement = event.target;
+        const val = inputElement.value.trim();
+
+        if (!isValidNilai(val)) {
+           // Invalid, biarkan onchange yang menampilkan error, jangan pindah fokus
+           inputElement.blur(); 
+           return;
+        }
+
+        const dataIndex = globalData[setIndex].tableData.findIndex(r => r.rowNum === currentRowNum);
+        const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
+        let oldValue = "";
+        if (dataIndex !== -1) {
+           oldValue = globalData[setIndex].tableData[dataIndex].vals[valsIndex] || "";
+        }
+
+        // Jika nilai berubah, biarkan saveValue yang pindah fokus
+        if (val !== String(oldValue).trim()) {
+           inputElement.dataset.moveFocusOnSave = "true";
+           inputElement.blur(); 
+        } else {
+           // Nilai tidak berubah, langsung pindah fokus tanpa save
+           moveToNextRow(setIndex, currentRowNum, colIdx);
         }
       }
     }
@@ -424,12 +438,16 @@
         });
         return;
       }
+      
+      const moveFocusNext = inputElement.dataset.moveFocusOnSave === "true";
+      inputElement.dataset.moveFocusOnSave = "false"; // Reset
+      
       // Valid, lanjukan proses save
-      saveValue(setIndex, rowNum, colIdx, val, spinnerId, inputElement);
+      saveValue(setIndex, rowNum, colIdx, val, spinnerId, inputElement, moveFocusNext);
     }
 
     // Komunikasi dengan Apps Script untuk simpan data
-    function saveValue(setIndex, rowNum, colIdx, newValue, spinnerId, inputElement) {
+    function saveValue(setIndex, rowNum, colIdx, newValue, spinnerId, inputElement, moveFocusNext = false) {
       const getStatusEl = () => document.getElementById(`status-${setIndex}`);
       const getSpinnerEl = () => document.getElementById(spinnerId);
       const getInputEl = () => document.getElementById(`input-${setIndex}-${rowNum}-${colIdx}`) || inputElement;
@@ -493,6 +511,10 @@
           const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
           if (dataIndex !== -1) globalData[setIndex].tableData[dataIndex].vals[valsIndex] = newValue;
 
+          if (moveFocusNext) {
+              moveToNextRow(setIndex, rowNum, colIdx);
+          }
+
           setTimeout(() => { 
              const tempSt = getStatusEl();
              if(tempSt) tempSt.style.display = "none"; 
@@ -506,6 +528,7 @@
           if (currInp2) {
              currInp2.style.borderColor = "#dc3545";
              currInp2.style.backgroundColor = "#f8d7da";
+             if (moveFocusNext) currInp2.focus(); // kembalikan fokus ke sini karena gagal
           }
         }
       })
@@ -518,6 +541,7 @@
             currInp2.disabled = false;
             currInp2.style.borderColor = "#dc3545";
             currInp2.style.backgroundColor = "#f8d7da";
+            if (moveFocusNext) currInp2.focus(); // kembalikan fokus ke sini karena gagal
         }
         
         const currSt = getStatusEl();
