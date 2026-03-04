@@ -353,7 +353,9 @@
              icon: 'warning',
              title: 'Nilai Tidak Valid',
              text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
-             confirmButtonColor: '#2e7d32'
+             confirmButtonColor: '#2e7d32',
+             allowEnterKey: true,
+             returnFocus: false
            }).then(() => {
              inputElement.value = ""; 
              inputElement.focus();
@@ -422,7 +424,9 @@
           icon: 'warning',
           title: 'Nilai Tidak Valid',
           text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
-          confirmButtonColor: '#2e7d32'
+          confirmButtonColor: '#2e7d32',
+          allowEnterKey: true,
+          returnFocus: false
         }).then(() => {
           inputElement.value = ""; 
           inputElement.focus();
