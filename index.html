@@ -21,6 +21,9 @@
     .table-responsive { border-radius: 8px; }
     .table { font-size: 0.75rem; margin-bottom: 0; }
     .nilai-input { width: 55px; text-align: center; font-weight: bold; border: 1px solid #ffc107; padding: 2px; font-size: 0.8rem; border-radius: 4px; }
+    .input-wrapper { position: relative; display: inline-block; }
+    .input-spinner { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: none; width: 14px; height: 14px; border: 2px solid rgba(46, 125, 50, 0.3); border-radius: 50%; border-top-color: #2e7d32; animation: spin 1s ease-in-out infinite; }
+    @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
     .status-saved { font-size: 0.75rem; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
     #loading-msg { display: none; color: yellow; font-size: 0.9rem; margin-top: 15px; }
   </style>
@@ -242,11 +245,16 @@
                     <td class="text-center">${row.vals[2]}</td>`;
                   for (let i = 3; i < row.vals.length; i++) {
                     let actualColIdx = set.colIndices[i-3];
+                    let inputId = `input-${setIndex}-${row.rowNum}-${actualColIdx}`;
+                    let spinnerId = `spinner-${setIndex}-${row.rowNum}-${actualColIdx}`;
                     rowCells += `
                       <td class="text-center">
-                        <input type="text" class="form-control form-control-sm mx-auto nilai-input" 
-                          value="${row.vals[i] || ''}" 
-                          onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this)">
+                        <div class="input-wrapper">
+                          <input type="text" id="${inputId}" class="form-control form-control-sm mx-auto nilai-input" 
+                            value="${row.vals[i] || ''}" 
+                            onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this, '${spinnerId}')">
+                          <div id="${spinnerId}" class="input-spinner"></div>
+                        </div>
                       </td>`;
                   }
                   return `<tr>${rowCells}</tr>`;
@@ -285,10 +293,10 @@
       renderTable(setIndex);
     }
 
-    function validateAndSave(setIndex, rowNum, colIdx, inputElement) {
+    function validateAndSave(setIndex, rowNum, colIdx, inputElement, spinnerId) {
       const val = inputElement.value.trim();
       if (val === "") {
-        saveValue(setIndex, rowNum, colIdx, "");
+        saveValue(setIndex, rowNum, colIdx, "", spinnerId, inputElement);
         return;
       }
 
@@ -300,15 +308,20 @@
         inputElement.value = ""; 
         return;
       }
-      saveValue(setIndex, rowNum, colIdx, val);
+      saveValue(setIndex, rowNum, colIdx, val, spinnerId, inputElement);
     }
 
     // Komunikasi dengan Apps Script untuk simpan data
-    function saveValue(setIndex, rowNum, colIdx, newValue) {
+    function saveValue(setIndex, rowNum, colIdx, newValue, spinnerId, inputElement) {
       const statusEl = document.getElementById(`status-${setIndex}`);
+      const spinnerEl = document.getElementById(spinnerId);
+      
       statusEl.style.display = "block";
       statusEl.className = "status-saved bg-light text-warning";
       statusEl.innerText = "Saving...";
+      
+      if (spinnerEl) spinnerEl.style.display = "block";
+      if (inputElement) inputElement.disabled = true;
 
       const payload = {
         action: "updateCell",
@@ -326,9 +339,21 @@
       })
       .then(response => response.json())
       .then(result => {
+        if (spinnerEl) spinnerEl.style.display = "none";
+        if (inputElement) inputElement.disabled = false;
+        
         if(result.status === "success") {
           statusEl.className = "status-saved bg-success text-white";
           statusEl.innerText = "✓ OK";
+          
+          if (inputElement) {
+             inputElement.style.borderColor = "#28a745";
+             inputElement.style.backgroundColor = "#d4edda";
+             setTimeout(() => {
+               inputElement.style.borderColor = "#ffc107";
+               inputElement.style.backgroundColor = "";
+             }, 1500);
+          }
           
           const dataIndex = globalData[setIndex].tableData.findIndex(r => r.rowNum === rowNum);
           const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
@@ -338,9 +363,19 @@
         } else {
           statusEl.className = "status-saved bg-danger text-white";
           statusEl.innerText = "Gagal";
+          if (inputElement) {
+             inputElement.style.borderColor = "#dc3545";
+             inputElement.style.backgroundColor = "#f8d7da";
+          }
         }
       })
       .catch(err => {
+        if (spinnerEl) spinnerEl.style.display = "none";
+        if (inputElement) {
+            inputElement.disabled = false;
+            inputElement.style.borderColor = "#dc3545";
+            inputElement.style.backgroundColor = "#f8d7da";
+        }
         statusEl.className = "status-saved bg-danger text-white";
         statusEl.innerText = "Error Jaringan";
       });
