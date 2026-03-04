@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Setor Lembar Penilai</title>
+    <title>Keadaan Setoran Lembar Penilaian /Ujian</title>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -170,7 +170,7 @@
     <div id="login-section" class="flex-1 flex flex-col items-center justify-center p-6">
         <div class="glass-card rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
             <div class="text-5xl mb-4">📋</div>
-            <h1 class="text-2xl font-bold text-slate-800 mb-2">Sistem Setor Lembar Penilai</h1>
+            <h1 class="text-2xl font-bold text-slate-800 mb-2">Keadaan Setoran Lembar Penilaian/ Ujian</h1>
             <p class="text-slate-600 mb-8">Gunakan email @daarululuumlido.com untuk masuk.</p>
 
             <div id="g_id_onload"
@@ -189,7 +189,7 @@
     <div id="app-wrapper" class="min-h-full w-full p-4 md:p-6 hidden">
         <header class="glass-card rounded-2xl p-6 mb-6 shadow-xl flex justify-between items-center">
             <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-slate-800">📋 Sistem Setor Lembar Penilai</h1>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800">📋 Keadaan Setoran Lembar Penilaian/ Ujian</h1>
                 <p class="text-slate-600 mt-1">Halo, <span id="user-email-display"
                         class="font-bold text-blue-600"></span></p>
                 <p id="last-update" class="text-xs text-slate-500 mt-2 font-medium">Terakhir diupdate: -</p>
@@ -276,9 +276,9 @@
                             <th class="px-4 py-4 text-left text-sm font-semibold cursor-pointer hover:bg-blue-800 transition"
                                 onclick="sortTable('mata_pelajaran')">Mapel <span id="sort-icon-mata_pelajaran"
                                     class="ml-1 text-xs opacity-50">↕</span></th>
-                            <th class="px-4 py-4 text-center text-sm font-semibold" colspan="3">Setor 1</th>
+                            <th class="px-4 py-4 text-center text-sm font-semibold" colspan="3">Setoran</th>
                             <th class="px-4 py-4 text-center text-sm font-semibold cursor-pointer hover:bg-blue-800 transition"
-                                onclick="sortTable('setor_koreksian')">Koreksian <span id="sort-icon-setor_koreksian"
+                                onclick="sortTable('setor_koreksian')">Penilaian/ Koreksian <span id="sort-icon-setor_koreksian"
                                     class="ml-1 text-xs opacity-50">↕</span></th>
 
                             <th id="th-aksi" class="px-4 py-4 text-center text-sm font-semibold">Aksi</th>
