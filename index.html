@@ -348,8 +348,15 @@
         event.preventDefault();
         
         const inputElement = event.target;
+        const val = inputElement.value.trim();
+
+        if (!isValidNilai(val)) {
+           // Invalid, biarkan onchange yang menampilkan error, jangan pindah fokus
+           inputElement.blur(); 
+           return;
+        }
         
-        // Pemicu onchange untuk validasi dan penentuan simpan
+        // Pemicu onchange untuk simpan (jika berubah)
         inputElement.blur(); 
 
         // Cari row selanjutnya untuk difokuskan
