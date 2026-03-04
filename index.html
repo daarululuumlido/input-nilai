@@ -119,7 +119,8 @@
           icon: 'error',
           title: 'Akses Ditolak',
           text: 'Harap gunakan email @daarululuumlido.com',
-          confirmButtonColor: '#2e7d32'
+          confirmButtonColor: '#2e7d32',
+          returnFocus: true
         });
         return;
       }
@@ -156,7 +157,8 @@
             icon: 'error',
             title: 'Terjadi Kesalahan',
             text: result.message,
-            confirmButtonColor: '#2e7d32'
+            confirmButtonColor: '#2e7d32',
+            returnFocus: true
           });
           resetLoginState();
         }
@@ -195,7 +197,8 @@
           icon: 'warning',
           title: 'Akses Ditolak',
           text: 'Data guru untuk email ' + currentUserEmail + ' tidak ditemukan.',
-          confirmButtonColor: '#2e7d32'
+          confirmButtonColor: '#2e7d32',
+          returnFocus: true
         });
         resetLoginState();
         return; 
@@ -354,10 +357,13 @@
              title: 'Nilai Tidak Valid',
              text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
              timer: 1200,
-             showConfirmButton: false
+             showConfirmButton: false,
+             returnFocus: true
            }).then(() => {
              inputElement.value = ""; 
-             inputElement.focus();
+             setTimeout(() => {
+               inputElement.focus();
+             }, 50);
            });
            return; // Berhenti dieksekusi, tidak jadi simpan dan pindah
         }
@@ -424,10 +430,13 @@
           title: 'Nilai Tidak Valid',
           text: 'Nilai harus angka antara 0 - 100. Tidak boleh ada tanda baca atau simbol.',
           timer: 1200,
-          showConfirmButton: false
+          showConfirmButton: false,
+          returnFocus: true
         }).then(() => {
           inputElement.value = ""; 
-          inputElement.focus();
+          setTimeout(() => {
+            inputElement.focus();
+          }, 50);
         });
         return;
       }
