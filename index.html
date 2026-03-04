@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administrasi Ujian</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    body { background-color: #f0f4f0; font-family: 'Segoe UI', sans-serif; }
+    .login-container { height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-box { background-color: #2e7d32; color: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); text-align: center; width: 100%; max-width: 400px; }
+    #main-content { display: none; padding: 15px 10px; }
+    .header-section { text-align: center; margin-bottom: 25px; color: #1b5e20; }
+    .data-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+    .search-box { margin-bottom: 15px; position: relative; }
+    .search-box input { border-radius: 20px; padding-left: 35px; border: 1px solid #ced4da; font-size: 0.85rem; }
+    .search-icon { position: absolute; left: 12px; top: 6px; color: #2e7d32; }
+    .table-responsive { border-radius: 8px; }
+    .table { font-size: 0.75rem; margin-bottom: 0; }
+    .nilai-input { width: 55px; text-align: center; font-weight: bold; border: 1px solid #ffc107; padding: 2px; font-size: 0.8rem; border-radius: 4px; }
+    .status-saved { font-size: 0.75rem; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+    #loading-msg { display: none; color: yellow; font-size: 0.9rem; margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+  <div id="login-screen" class="login-container">
+    <div class="login-box">
+      <h4 class="mb-2">Assalamualaikum</h4>
+      <p style="margin: 0;">Input Nilai</p>
+      <p style="margin: 0;">Semester Genap 2025-2026</p>
+      <hr>
+      <p style="margin: 0;">Login dengan akun sekolah:</p>
+      <p style="color: red; background-color: yellow; padding: 2px; border-radius: 4px; margin-bottom: 20px;">@daarululuumlido.com</p>
+
+      <div id="google-btn-container" style="display: flex; justify-content: center;"></div>
+      
+      <div id="loading-msg">Mencari data guru, mohon tunggu...</div>
+    </div>
+  </div>
+
+  <div id="main-content" class="container">
+    <div class="header-section">
+      <h5 class="fw-bold mb-1">Administrasi Ujian</h5>
+      <p class="text-secondary small mb-2" id="user-display">Semester Genap 2025-2026</p>
+      <span class="badge rounded-pill bg-success px-3">Input Nilai Ujian</span>
+    </div>
+    <div id="tables-container"></div>
+  </div>
+
+  <script>
+    // --- KONFIGURASI PENTING ---
+    // 1. Masukkan URL Web App Apps Script kamu di sini
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwV2KCHKpe9DvQtF1814AJ6BWxZNHpGbIJYqAf-tnJ6Fnl8wy-p_JEHICjQCJEQ4mUNLg/exec"; 
+    
+    // 2. Masukkan Client ID Google Cloud kamu (Nanti dibahas di bawah)
+    const GOOGLE_CLIENT_ID = "383224468511-olma0cr9hhenv9uk110bssc6p3k37mar.apps.googleusercontent.com";
+    // ---------------------------
+
+    let globalData = [];
+    let currentPage = {};
+    let searchQueries = {};
+    let currentUserEmail = "";
+
+    // Inisialisasi Tombol Login Google
+    window.onload = function () {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("google-btn-container"),
+        { theme: "outline", size: "large", text: "continue_with" }  // Tombol resmi Google
+      );
+    };
+
+    // Fungsi jika login Google berhasil
+    function handleCredentialResponse(response) {
+      // Decode token Google untuk mendapatkan email
+      const responsePayload = decodeJwtResponse(response.credential);
+      currentUserEmail = responsePayload.email;
+
+      // Validasi domain (Opsional, tapi disarankan)
+      if (!currentUserEmail.endsWith("@daarululuumlido.com")) {
+        alert("Harap gunakan email @daarululuumlido.com");
+        return;
+      }
+
+      document.getElementById('google-btn-container').style.display = 'none';
+      document.getElementById('loading-msg').style.display = 'block';
+
+      fetchData();
+    }
+
+    // Fungsi memecah kode token JWT dari Google
+    function decodeJwtResponse(token) {
+      let base64Url = token.split('.')[1];
+      let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      let jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    }
+
+    // Komunikasi dengan Apps Script untuk ambil data
+    function fetchData() {
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "getUserData", email: currentUserEmail }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" } // Pakai text/plain agar tidak error CORS
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.status === "success") {
+          renderInitial(result.data);
+        } else {
+          alert("Terjadi kesalahan sistem: " + result.message);
+          resetLoginState();
+        }
+      })
+      .catch(error => {
+        alert("Gagal menghubungi server.");
+        resetLoginState();
+      });
+    }
+
+    function resetLoginState() {
+      document.getElementById('google-btn-container').style.display = 'flex';
+      document.getElementById('loading-msg').style.display = 'none';
+    }
+
+    // Render Data (Sama persis dengan kodemu sebelumnya)
+    function renderInitial(response) {
+      if (!response || response.datasets.length === 0) {
+        alert("Akses ditolak atau data guru untuk email " + currentUserEmail + " tidak ditemukan.");
+        resetLoginState();
+        return; 
+      }
+
+      document.getElementById('user-display').innerText = `Login: ${currentUserEmail}`;
+
+      globalData = response.datasets;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+      globalData.forEach((set, index) => {
+        currentPage[index] = 0;
+        searchQueries[index] = "";
+        renderTable(index);
+      });
+    }
+
+    function renderTable(setIndex) {
+      const set = globalData[setIndex];
+      const container = document.getElementById('tables-container');
+      const query = (searchQueries[setIndex] || "").toLowerCase();
+      
+      const filteredData = set.tableData.filter(row => row.vals[0].toString().toLowerCase().includes(query));
+
+      const pageSize = 5;
+      const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+      
+      if (currentPage[setIndex] < 0) currentPage[setIndex] = 0;
+      if (currentPage[setIndex] >= totalPages) currentPage[setIndex] = totalPages - 1;
+
+      const start = currentPage[setIndex] * pageSize;
+      const end = start + pageSize;
+      const paginatedRows = filteredData.slice(start, end);
+
+      let headerHtml = set.headers.map((h, i) => 
+        `<th class="${i > 2 ? 'bg-warning text-dark text-center' : 'text-center'}">${h || ''}</th>`
+      ).join('');
+
+      let cardHtml = `
+        <div class="data-card" id="card-${setIndex}">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+               <h6 class="mb-0 text-success fw-bold">${set.namaGuru}</h6>
+               <small class="text-muted" style="font-size: 0.7rem;">${set.kelasGuru} | ${set.mapelGuru}</small>
+            </div>
+            <div id="status-${setIndex}" class="status-saved" style="display:none;"></div>
+          </div>
+
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-control form-control-sm" placeholder="Cari NIS..." 
+              value="${searchQueries[setIndex]}" oninput="handleSearch(${setIndex}, this.value)">
+          </div>
+          
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+              <thead class="table-success text-center">
+                <tr>${headerHtml}</tr>
+              </thead>
+              <tbody>
+                ${paginatedRows.length > 0 ? paginatedRows.map(row => {
+                  let rowCells = `
+                    <td class="text-center">${row.vals[0]}</td>
+                    <td class="text-center">${row.vals[1]}</td>
+                    <td class="text-center">${row.vals[2]}</td>`;
+                  for (let i = 3; i < row.vals.length; i++) {
+                    let actualColIdx = set.colIndices[i-3];
+                    rowCells += `
+                      <td class="text-center">
+                        <input type="text" class="form-control form-control-sm mx-auto nilai-input" 
+                          value="${row.vals[i] || ''}" 
+                          onchange="validateAndSave(${setIndex}, ${row.rowNum}, ${actualColIdx}, this)">
+                      </td>`;
+                  }
+                  return `<tr>${rowCells}</tr>`;
+                }).join('') : '<tr><td colspan="10" class="text-center text-muted">Data tidak ditemukan.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted" style="font-size: 0.65rem;">Hal ${filteredData.length > 0 ? currentPage[setIndex] + 1 : 0} dari ${totalPages}</small>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-success" ${currentPage[setIndex] === 0 ? 'disabled' : ''} 
+                onclick="changePage(${setIndex}, -1)">Prev</button>
+              <button class="btn btn-sm btn-outline-success" ${currentPage[setIndex] >= totalPages - 1 ? 'disabled' : ''} 
+                onclick="changePage(${setIndex}, 1)">Next</button>
+            </div>
+          </div>
+        </div>`;
+
+      const existingCard = document.getElementById(`card-${setIndex}`);
+      if (existingCard) {
+        existingCard.outerHTML = cardHtml;
+      } else {
+        container.insertAdjacentHTML('beforeend', cardHtml);
+      }
+    }
+
+    function handleSearch(setIndex, value) {
+      searchQueries[setIndex] = value;
+      currentPage[setIndex] = 0; 
+      renderTable(setIndex);
+    }
+
+    function changePage(setIndex, direction) {
+      currentPage[setIndex] += direction;
+      renderTable(setIndex);
+    }
+
+    function validateAndSave(setIndex, rowNum, colIdx, inputElement) {
+      const val = inputElement.value.trim();
+      if (val === "") {
+        saveValue(setIndex, rowNum, colIdx, "");
+        return;
+      }
+
+      const isNumeric = /^\d+$/.test(val);
+      const numVal = parseInt(val, 10);
+
+      if (!isNumeric || numVal < 0 || numVal > 100) {
+        alert('⛔ PERINGATAN:\n\nNilai harus angka antara 0 - 100.\nTidak boleh ada tanda baca atau simbol.');
+        inputElement.value = ""; 
+        return;
+      }
+      saveValue(setIndex, rowNum, colIdx, val);
+    }
+
+    // Komunikasi dengan Apps Script untuk simpan data
+    function saveValue(setIndex, rowNum, colIdx, newValue) {
+      const statusEl = document.getElementById(`status-${setIndex}`);
+      statusEl.style.display = "block";
+      statusEl.className = "status-saved bg-light text-warning";
+      statusEl.innerText = "Saving...";
+
+      const payload = {
+        action: "updateCell",
+        email: currentUserEmail,
+        sheetId: globalData[setIndex].sheetId,
+        rowNum: rowNum,
+        colIdx: colIdx,
+        newValue: newValue
+      };
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      })
+      .then(response => response.json())
+      .then(result => {
+        if(result.status === "success") {
+          statusEl.className = "status-saved bg-success text-white";
+          statusEl.innerText = "✓ OK";
+          
+          const dataIndex = globalData[setIndex].tableData.findIndex(r => r.rowNum === rowNum);
+          const valsIndex = globalData[setIndex].colIndices.indexOf(colIdx) + 3;
+          if (dataIndex !== -1) globalData[setIndex].tableData[dataIndex].vals[valsIndex] = newValue;
+
+          setTimeout(() => { statusEl.style.display = "none"; }, 1500);
+        } else {
+          statusEl.className = "status-saved bg-danger text-white";
+          statusEl.innerText = "Gagal";
+        }
+      })
+      .catch(err => {
+        statusEl.className = "status-saved bg-danger text-white";
+        statusEl.innerText = "Error Jaringan";
+      });
+    }
+  </script>
+</body>
+</html>
